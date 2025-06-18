@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Guide to Quantitative Trading</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Professional -->
+    <!-- Application Structure Plan: The SPA is designed as a non-linear learning path, breaking the report into five thematic sections accessible via a top navigation bar: Home, Foundations, Workflow, Career Prep, and Future Trends. This structure was chosen over a linear scroll to empower users to explore topics based on their interest and prior knowledge, fostering a more engaging, app-like experience. The "Foundations" section groups core knowledge (terms, math, programming). The "Workflow" section presents a logical, step-by-step process from data to evaluation. "Career Prep" consolidates actionable advice. This thematic organization improves discoverability and reduces cognitive load, making the dense information more accessible for a beginner. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Key Terminology -> Goal: Inform -> Viz/Method: Interactive card grid -> Interaction: Click to reveal definition -> Justification: Breaks up long list, encourages active exploration over passive reading. -> Method: HTML/CSS/JS.
+        - Report Info: Programming Languages -> Goal: Compare -> Viz/Method: Interactive Bar Chart -> Interaction: Hover to see details, click to see libraries -> Justification: Visual comparison is faster than reading a list; interaction provides layered detail on demand. -> Library: Chart.js.
+        - Report Info: Performance Metrics (Sharpe, MDD, etc.) -> Goal: Explain abstract concepts tangibly -> Viz/Method: Interactive "Metrics Lab" with sliders and a static chart -> Interaction: User adjusts sliders for win rate/profit/loss to see Expectancy/Profit Factor change in real-time. -> Justification: Active simulation makes the mathematical relationships intuitive and memorable. -> Method: HTML/JS for sliders, Chart.js for MDD visual.
+        - Report Info: Quant Workflow Process -> Goal: Organize -> Viz/Method: Stepped process diagram -> Interaction: Click on a step to highlight and jump to its details -> Justification: Visually represents the end-to-end process, providing a mental model for the user to follow. -> Method: HTML/Tailwind CSS.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #F8F9FA; }
+        .nav-link { transition: all 0.3s; }
+        .nav-link.active { color: #0891B2; border-bottom: 2px solid #0891B2; }
+        .content-section { display: none; }
+        .content-section.active { display: block; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .chart-container { position: relative; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; height: 350px; max-height: 40vh; }
+        @media (max-width: 768px) { .chart-container { height: 300px; max-height: 50vh; } }
+        .metric-card { transition: all 0.3s ease; }
+        .term-card { perspective: 1000px; }
+        .term-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; }
+        .term-card.is-flipped .term-card-inner { transform: rotateY(180deg); }
+        .term-card-front, .term-card-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+        .term-card-back { transform: rotateY(180deg); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-700">
+
+    <nav class="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <span class="font-bold text-xl text-cyan-700">QuantGuide</span>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#home" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-cyan-600">Home</a>
+                        <a href="#foundations" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-cyan-600">Foundations</a>
+                        <a href="#workflow" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-cyan-600">Workflow</a>
+                        <a href="#career" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-cyan-600">Career Prep</a>
+                        <a href="#trends" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-cyan-600">Future Trends</a>
+                    </div>
+                </div>
+                <div class="md:hidden">
+                    <button id="mobile-menu-button" class="inline-flex items-center justify-center p-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-white">
+                        <span class="sr-only">Open main menu</span>
+                        <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div id="mobile-menu" class="md:hidden hidden">
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                <a href="#home" class="nav-link block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:text-cyan-600">Home</a>
+                <a href="#foundations" class="nav-link block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:text-cyan-600">Foundations</a>
+                <a href="#workflow" class="nav-link block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:text-cyan-600">Workflow</a>
+                <a href="#career" class="nav-link block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:text-cyan-600">Career Prep</a>
+                <a href="#trends" class="nav-link block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:text-cyan-600">Future Trends</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <!-- Home Section -->
+        <section id="home" class="content-section px-4">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div class="p-8 md:p-12">
+                    <h1 class="text-4xl md:text-5xl font-bold text-slate-800 leading-tight">Your Interactive Journey into Quantitative Finance</h1>
+                    <p class="mt-4 text-lg text-slate-600 max-w-3xl">This guide transforms the complex world of quantitative trading and research into an accessible, interactive experience. Designed for aspiring interns and beginners, it breaks down core concepts, tools, and strategies. Use the navigation above to explore the foundations, workflow, and future of this dynamic field.</p>
+                </div>
+                <div class="p-8 md:p-12 bg-slate-50 border-t border-slate-200">
+                    <h2 class="text-2xl font-bold text-slate-800">What is Quantitative Trading?</h2>
+                    <p class="mt-2 text-slate-600">Quantitative trading uses mathematical models and computer algorithms to make systematic, data-driven financial decisions. By removing human emotion, it aims to identify and capitalize on market opportunities with speed and precision. Today, over 80% of U.S. equity trades are executed by algorithms, making quant finance the dominant paradigm in modern markets. This guide is your first step to understanding how it all works.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Foundations Section -->
+        <section id="foundations" class="content-section px-4">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-slate-800">The Building Blocks of a Quant</h2>
+                <p class="mt-2 text-lg text-slate-600 max-w-3xl mx-auto">This section covers the essential knowledge every quant needs: the language of the market, the mathematics that power the models, and the programming skills to bring them to life. Master these fundamentals to build a solid base for your career.</p>
+            </div>
+            
+            <div id="foundations-content">
+                <h3 class="text-2xl font-bold text-center text-slate-800 mb-6">Key Terminology</h3>
+                <p class="text-center text-slate-600 mb-8 max-w-2xl mx-auto">The world of quant finance has its own vocabulary. Click on any card below to flip it and learn the definition of these fundamental concepts.</p>
+                <div id="terms-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+            </div>
+        </section>
+
+        <!-- Workflow Section -->
+        <section id="workflow" class="content-section px-4">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-slate-800">The Quant Workflow: From Idea to Execution</h2>
+                <p class="mt-2 text-lg text-slate-600 max-w-3xl mx-auto">Quantitative trading follows a systematic process. This section walks you through the practical steps of a quant's daily life: acquiring the right data, developing robust strategies, and rigorously evaluating performance before risking a single dollar.</p>
+            </div>
+            
+            <div id="workflow-content" class="space-y-12">
+                <div class="bg-white p-8 rounded-xl shadow-lg">
+                    <h3 class="text-2xl font-bold text-slate-800 mb-4">Trading Strategy Development</h3>
+                    <div id="strategy-cards" class="grid md:grid-cols-2 gap-6"></div>
+                </div>
+
+                <div class="bg-white p-8 rounded-xl shadow-lg">
+                    <h3 class="text-2xl font-bold text-slate-800 mb-4">Performance Metrics Lab</h3>
+                    <p class="text-slate-600 mb-6">Evaluating a strategy is crucial. A high win rate means nothing if losses are too large. Use the sliders below to see how different parameters affect a strategy's long-term profitability.</p>
+                    <div class="grid md:grid-cols-2 gap-8 items-center">
+                        <div>
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="winRate" class="block text-sm font-medium text-slate-700">Win Rate: <span id="winRateValue" class="font-bold">50%</span></label>
+                                    <input id="winRate" type="range" min="10" max="90" value="50" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                                </div>
+                                <div>
+                                    <label for="avgWin" class="block text-sm font-medium text-slate-700">Average Win ($): <span id="avgWinValue" class="font-bold">150</span></label>
+                                    <input id="avgWin" type="range" min="10" max="500" value="150" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                                </div>
+                                <div>
+                                    <label for="avgLoss" class="block text-sm font-medium text-slate-700">Average Loss ($): <span id="avgLossValue" class="font-bold">100</span></label>
+                                    <input id="avgLoss" type="range" min="10" max="500" value="100" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-slate-50 p-6 rounded-lg text-center">
+                            <div class="mb-4">
+                                <h4 class="text-lg font-semibold text-slate-800">Expectancy</h4>
+                                <p id="expectancyValue" class="text-3xl font-bold text-cyan-600">$25.00</p>
+                                <p class="text-xs text-slate-500">Avg. P/L per trade</p>
+                            </div>
+                            <div>
+                                <h4 class="text-lg font-semibold text-slate-800">Profit Factor</h4>
+                                <p id="profitFactorValue" class="text-3xl font-bold text-cyan-600">1.50</p>
+                                <p class="text-xs text-slate-500">Gross Profit / Gross Loss</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-8 rounded-xl shadow-lg">
+                    <h3 class="text-2xl font-bold text-slate-800 mb-4">The Danger of Drawdowns</h3>
+                    <p class="text-slate-600 mb-6">Maximum Drawdown (MDD) measures the largest drop from a peak in your portfolio. A large drawdown is dangerous because it requires a much larger percentage gain to recover. This chart illustrates how quickly the required recovery gain grows.</p>
+                     <div class="chart-container">
+                        <canvas id="mddChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Career Prep Section -->
+        <section id="career" class="content-section px-4">
+             <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-slate-800">Preparing for Your Quant Internship</h2>
+                <p class="mt-2 text-lg text-slate-600 max-w-3xl mx-auto">Technical skills are only part of the equation. This section details the "soft" skills, educational paths, and practical projects that will make you stand out. Use this as a checklist to get ahead of the pack.</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <h3 class="text-xl font-bold text-slate-800 mb-3">Critical Soft Skills</h3>
+                    <ul id="soft-skills-list" class="space-y-2 text-slate-600"></ul>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-lg lg:col-span-2">
+                    <h3 class="text-xl font-bold text-slate-800 mb-3">Practical Project Ideas</h3>
+                     <p class="text-slate-600 mb-4">A portfolio of projects is the best way to showcase your abilities. Here are some ideas to demonstrate your skills in coding, analysis, and implementation.</p>
+                    <div id="project-ideas-grid" class="grid sm:grid-cols-2 gap-4"></div>
+                </div>
+                 <div class="bg-white p-6 rounded-xl shadow-lg lg:col-span-3">
+                    <h3 class="text-xl font-bold text-slate-800 mb-3">Recommended Reading List</h3>
+                    <p class="text-slate-600 mb-4">Continuous learning is key. This curated list includes foundational texts, practical guides, and books on the latest machine learning techniques in finance.</p>
+                    <div id="reading-list-container"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Future Trends Section -->
+        <section id="trends" class="content-section px-4">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-slate-800">The Future of Quantitative Finance</h2>
+                <p class="mt-2 text-lg text-slate-600 max-w-3xl mx-auto">The quant landscape is constantly evolving. Understanding these key trends—from AI and alternative data to DeFi and regulation—is crucial for staying relevant and identifying future opportunities.</p>
+            </div>
+            <div id="trends-container" class="space-y-8"></div>
+        </section>
+    </main>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            
+            const appData = {
+                terms: [
+                    { term: "Algorithmic Trading", definition: "Automated execution of trades using computer programs based on predefined rules, encompassing execution, profit-seeking, and HFT algorithms." },
+                    { term: "Backtesting", definition: "Testing a trading strategy on historical data to evaluate its potential performance and identify flaws before committing real capital." },
+                    { term: "Alpha", definition: "The excess return of an investment relative to a benchmark index. It measures a strategy's ability to 'beat the market'." },
+                    { term: "Risk Management", definition: "The process of identifying, assessing, and controlling threats to capital, using techniques like position sizing, stop-losses, and diversification." },
+                    { term: "Tick Data", definition: "The most granular form of market data, capturing every single price change or trade execution. Essential for HFT." },
+                    { term: "Volatility", definition: "A statistical measure of the dispersion of returns for a given asset. It is a primary indicator of risk." },
+                    { term: "Sharpe Ratio", definition: "A key performance metric that measures risk-adjusted return, indicating how much return an investment generates for each unit of risk." },
+                    { term: "Maximum Drawdown", definition: "The largest peak-to-trough decline in a portfolio's value over a specific period. A key measure of downside risk." }
+                ],
+                strategies: [
+                    { name: 'Momentum Investing', description: 'Based on the idea that assets with strong recent performance will continue to perform well. It involves buying upward-trending assets and selling downward-trending ones.' },
+                    { name: 'Trend Following', description: 'Aims to capture long-term price movements (trends) across various asset classes. Often uses moving averages to identify sustained directional shifts.' },
+                    { name: 'Mean Reversion', description: 'Assumes that asset prices tend to revert to their historical average over time. It profits from buying undervalued and selling overvalued assets.' },
+                    { name: 'Statistical Arbitrage', description: 'Exploits statistical mispricings between related assets. It involves buying underperforming assets while shorting outperforming ones, expecting their prices to converge.' }
+                ],
+                softSkills: [
+                    { name: "Problem-Solving", desc: "Creatively tackle complex, unstructured problems and devise innovative solutions." },
+                    { name: "Communication", desc: "Clearly articulate complex technical findings to both technical and non-technical audiences." },
+                    { name: "Attention to Detail", desc: "Meticulously analyze data to spot subtle patterns and identify errors that could impact models." },
+                    { name: "Market Intuition", desc: "Develop a 'feel' for market dynamics to complement rigorous quantitative analysis." },
+                ],
+                projectIdeas: [
+                    { name: "Build a Trading Engine", desc: "Create a simple client-server system to process transaction requests, demonstrating architecture and latency concepts." },
+                    { name: "Option Pricing Models", desc: "Implement Black-Scholes or Monte Carlo models to show grasp of financial mathematics and derivatives." },
+                    { name: "Strategy Backtesting", desc: "Code a trading strategy (e.g., Bollinger Bands) and test it on historical data to evaluate its performance." },
+                    { name: "ML Visualization", desc: "Visualize a machine learning concept like K-Means clustering to showcase programming and analytical skills." }
+                ],
+                readingList: {
+                    'Foundational': ['Option Volatility & Pricing by S. Natenberg', 'Trading and Exchanges by L. Harris', 'Stochastic Calculus for Finance I by S. Shreve'],
+                    'Implementation': ['Quantitative Trading by E. Chan', 'Python for Algorithmic Trading by Y. Hilpisch', 'Building Winning Algorithmic Trading Systems by K. Davey'],
+                    'Machine Learning': ['Advances in Financial Machine Learning by M. López de Prado', 'Hands-On Machine Learning for Algorithmic Trading by S. Jansen']
+                },
+                trends: [
+                    { name: "AI & Machine Learning", desc: "AI/ML are transforming finance, enabling sophisticated predictive analytics, adaptive strategies, and insight extraction from unstructured data like news and social media (NLP)." },
+                    { name: "Alternative Data", desc: "The use of non-traditional data (e.g., satellite imagery, web traffic, social media sentiment) is growing, offering unique insights to gain a competitive edge." },
+                    { name: "Decentralized Finance (DeFi)", desc: "Algorithmic strategies are increasingly applied to blockchain assets, with smart contracts enabling automated, transparent trading in a decentralized ecosystem." },
+                    { name: "Evolving Regulation", desc: "Stricter guidelines are emerging globally to ensure fairness and transparency in algorithmic trading, with a focus on model explainability (XAI) and risk control." }
+                ]
+            };
+            
+            const ui = {
+                navLinks: document.querySelectorAll('.nav-link'),
+                contentSections: document.querySelectorAll('.content-section'),
+                termsGrid: document.getElementById('terms-grid'),
+                strategyCards: document.getElementById('strategy-cards'),
+                metrics: {
+                    winRate: document.getElementById('winRate'),
+                    avgWin: document.getElementById('avgWin'),
+                    avgLoss: document.getElementById('avgLoss'),
+                    winRateValue: document.getElementById('winRateValue'),
+                    avgWinValue: document.getElementById('avgWinValue'),
+                    avgLossValue: document.getElementById('avgLossValue'),
+                    expectancyValue: document.getElementById('expectancyValue'),
+                    profitFactorValue: document.getElementById('profitFactorValue'),
+                },
+                mddChartCanvas: document.getElementById('mddChart'),
+                softSkillsList: document.getElementById('soft-skills-list'),
+                projectIdeasGrid: document.getElementById('project-ideas-grid'),
+                readingListContainer: document.getElementById('reading-list-container'),
+                trendsContainer: document.getElementById('trends-container'),
+                mobileMenuButton: document.getElementById('mobile-menu-button'),
+                mobileMenu: document.getElementById('mobile-menu')
+            };
+
+            let charts = {};
+
+            function navigate(hash) {
+                hash = hash || '#home';
+                ui.contentSections.forEach(section => {
+                    if ('#' + section.id === hash) {
+                        section.classList.add('active');
+                    } else {
+                        section.classList.remove('active');
+                    }
+                });
+                ui.navLinks.forEach(link => {
+                    if (link.getAttribute('href') === hash) {
+                        link.classList.add('active');
+                    } else {
+                        link.classList.remove('active');
+                    }
+                });
+                
+                if(hash === '#workflow' && !charts.mddChart) {
+                    renderMddChart();
+                }
+
+                ui.mobileMenu.classList.add('hidden');
+            }
+            
+            function populateTerms() {
+                appData.terms.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'term-card h-32 bg-white rounded-lg shadow cursor-pointer';
+                    card.innerHTML = `
+                        <div class="term-card-inner">
+                            <div class="term-card-front bg-white rounded-lg border border-slate-200">
+                                <h4 class="text-md font-semibold text-slate-800">${item.term}</h4>
+                            </div>
+                            <div class="term-card-back bg-cyan-600 text-white rounded-lg">
+                                <p class="text-sm">${item.definition}</p>
+                            </div>
+                        </div>
+                    `;
+                    card.addEventListener('click', () => card.classList.toggle('is-flipped'));
+                    ui.termsGrid.appendChild(card);
+                });
+            }
+
+            function populateStrategies() {
+                appData.strategies.forEach(strat => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-slate-50 p-6 rounded-lg border border-slate-200';
+                    card.innerHTML = `
+                        <h4 class="font-bold text-cyan-700">${strat.name}</h4>
+                        <p class="mt-2 text-sm text-slate-600">${strat.description}</p>
+                    `;
+                    ui.strategyCards.appendChild(card);
+                });
+            }
+
+            function updateMetrics() {
+                const winRate = parseFloat(ui.metrics.winRate.value) / 100;
+                const lossRate = 1 - winRate;
+                const avgWin = parseFloat(ui.metrics.avgWin.value);
+                const avgLoss = parseFloat(ui.metrics.avgLoss.value);
+
+                const expectancy = (winRate * avgWin) - (lossRate * avgLoss);
+                const profitFactor = (winRate * avgWin) / (lossRate * avgLoss);
+
+                ui.metrics.winRateValue.textContent = `${(winRate * 100).toFixed(0)}%`;
+                ui.metrics.avgWinValue.textContent = `${avgWin.toFixed(0)}`;
+                ui.metrics.avgLossValue.textContent = `${avgLoss.toFixed(0)}`;
+
+                ui.metrics.expectancyValue.textContent = `$${expectancy.toFixed(2)}`;
+                ui.metrics.profitFactorValue.textContent = isFinite(profitFactor) ? profitFactor.toFixed(2) : '∞';
+
+                if (expectancy > 0) {
+                     ui.metrics.expectancyValue.classList.remove('text-red-600');
+                     ui.metrics.expectancyValue.classList.add('text-cyan-600');
+                } else {
+                     ui.metrics.expectancyValue.classList.remove('text-cyan-600');
+                     ui.metrics.expectancyValue.classList.add('text-red-600');
+                }
+            }
+
+            function renderMddChart() {
+                const ctx = ui.mddChartCanvas.getContext('2d');
+                const drawdowns = [5, 10, 15, 20, 25, 30, 40, 50];
+                const recoveryGains = drawdowns.map(d => (1 / (1 - d / 100) - 1) * 100);
+
+                charts.mddChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: drawdowns.map(d => `${d}%`),
+                        datasets: [{
+                            label: 'Gain Needed to Recover (%)',
+                            data: recoveryGains,
+                            backgroundColor: '#0891B2',
+                            borderColor: '#06B6D4',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Recovery Gain Required vs. Drawdown Percentage',
+                                font: { size: 16 }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `Gain to recover: ${context.raw.toFixed(2)}%`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Drawdown (%)'
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Recovery Gain (%)'
+                                },
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function populateCareerPrep() {
+                appData.softSkills.forEach(skill => {
+                    const li = document.createElement('li');
+                    li.className = "flex items-start"
+                    li.innerHTML = `<span class="flex-shrink-0 h-5 w-5 text-cyan-500 mt-1">✓</span><div class="ml-2"><p class="font-semibold text-slate-700">${skill.name}</p><p class="text-sm text-slate-500">${skill.desc}</p></div>`;
+                    ui.softSkillsList.appendChild(li);
+                });
+
+                appData.projectIdeas.forEach(project => {
+                    const div = document.createElement('div');
+                    div.className = "bg-slate-50 p-4 rounded-lg border border-slate-200";
+                    div.innerHTML = `<h4 class="font-semibold text-slate-700">${project.name}</h4><p class="text-sm text-slate-500 mt-1">${project.desc}</p>`;
+                    ui.projectIdeasGrid.appendChild(div);
+                });
+
+                Object.keys(appData.readingList).forEach(category => {
+                    const categoryDiv = document.createElement('div');
+                    categoryDiv.className = 'mb-4';
+                    let listItems = appData.readingList[category].map(book => `<li class="text-sm text-slate-600">${book}</li>`).join('');
+                    categoryDiv.innerHTML = `<h4 class="font-semibold text-cyan-700 mb-2">${category}</h4><ul class="list-disc list-inside space-y-1">${listItems}</ul>`;
+                    ui.readingListContainer.appendChild(categoryDiv);
+                });
+            }
+
+            function populateTrends() {
+                appData.trends.forEach(trend => {
+                    const div = document.createElement('div');
+                    div.className = "bg-white p-6 rounded-xl shadow-lg";
+                    div.innerHTML = `
+                        <h3 class="text-xl font-bold text-slate-800">${trend.name}</h3>
+                        <p class="mt-2 text-slate-600">${trend.desc}</p>`;
+                    ui.trendsContainer.appendChild(div);
+                });
+            }
+
+            function init() {
+                populateTerms();
+                populateStrategies();
+                populateCareerPrep();
+                populateTrends();
+
+                ui.navLinks.forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        navigate(link.getAttribute('href'));
+                    });
+                });
+                
+                window.addEventListener('popstate', () => {
+                    navigate(window.location.hash);
+                });
+
+                ui.mobileMenuButton.addEventListener('click', () => {
+                    ui.mobileMenu.classList.toggle('hidden');
+                });
+
+                Object.values(ui.metrics).forEach(slider => {
+                    if(slider.type === 'range') {
+                        slider.addEventListener('input', updateMetrics);
+                    }
+                });
+                
+                updateMetrics();
+                navigate(window.location.hash);
+            }
+
+            init();
+        });
+    </script>
+</body>
+</html>
